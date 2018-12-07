@@ -1,0 +1,360 @@
+
+<!DOCTYPE html>
+<html lang="de">
+	<head>
+		<meta charset="utf-8"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+		<style>
+			body{
+				margin: 0px;
+				padding: 20px;
+				background-color: black;
+				color: white;
+			}
+			h1{
+				margin-top: 0px
+			}
+			#status{
+				padding-left: 4px;
+				color: green;
+				font-weight: bolder
+			}
+			.currentSong, #stopper, .randomizer, #report{
+				padding-left: 4px;
+				font-weight: bolder;
+				color: white;
+			}
+			#report a:visited,#report a{
+				color: white;
+			}
+			#itemList{
+				margin-top: 10px
+			}
+			#stopper:hover{
+				text-decoration: underline;
+				cursor:pointer
+			}
+			#itemList > div{
+				border-width: 0px;
+				border-top: 1px;
+				border-style: solid;
+				border-color: white;
+				cursor:pointer;
+				transition: background 2s;
+				display: flex;
+				flex-direction: row;
+			}
+			#itemList > div > *{
+				padding-top: 8px;
+				padding-bottom: 8px;
+			}
+			#itemList > div:hover{
+				background-color: grey;
+				transition: background 0.5s
+			}
+			#itemList .play{
+				padding-right: 14px;
+				padding-left: 14px;
+				margin-right: 6px;
+				transition: background 2s;
+			}
+			#itemList .play:hover{
+				background-color: darkgrey;
+				transition: background 0.5s
+			}
+			#itemList .name{
+				white-space:nowrap;
+				overflow-x:hidden;
+			}
+			@media(max-width:900px){
+				body{
+					padding: 0px;
+					padding-top: 10px
+				}
+				h1{
+					margin-bottom: 0px
+				}
+				.play{
+					margin-right:0px
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<h1 id="title">myGroove</h1>
+		<div id="status">&nbsp;</div>
+		<div class="syncer" onclick="syncFiles()">Sync all Files</div>
+		<div><span id="cacheDelete" onclick="if(confirm('cache löschen?')){deleteSyncedFiles()}">Delete Cache</span></div>
+		<div><span id="stopper" onclick="currentSource.stop()">Stop &#9632;</span></div>
+		<div class="randomizer">Randomly play songs: <input type="checkbox" id="randomizer" /></div>
+		<div class="currentSong">Current Song: <span id="currentSong"></span></div>
+		<div id="report"><a href="https://tool.piagno.ch/report?d4ecf743463fc50d2f665f5c09f41791f56cdb0d8e180b9e4744b4bdc7de85fe" target="_blank">Give a feedback!</a></div>
+		<div id="itemList"></div>
+	</body>
+		<script>
+			syncing = false
+			loginCheck = (callback) => {
+				var accessToken = localStorage.getItem('ms_access_token')
+				var expiration = Date.parse(localStorage.getItem('ms_expires_in'))
+				var now = new Date()
+				if((accessToken && accessToken != "")&&(now < expiration)){
+					callback()
+				}else{
+					var refreshToken = localStorage.getItem('ms_refresh_token')
+					if(refreshToken && refreshToken != ""){
+						var req = new XMLHttpRequest()
+						req.open('GET','https://tool.piagno.ch/groove/token.php?code='+refreshToken)
+						req.addEventListener('load',function(rawData){
+							var data = JSON.parse(req.responseText)
+							var expires = new Date()
+							expires.setSeconds(expires.getSeconds() + data["expires_in"] - 1000)
+							localStorage.setItem('ms_access_token',data["access_token"])
+							localStorage.setItem('ms_refresh_token',data["refresh_token"])
+							localStorage.setItem('ms_expires_in',expires)
+							callback()
+						})
+						req.send()
+					}else{
+						window.location.assign("https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize?client_id=a93f99a5-3d78-41f3-812e-9d1130cab3c9&response_type=code&redirect_uri=https%3A%2F%2Ftool.piagno.ch%2Fgroove%2Fcallback.php&response_mode=query&scope=user.read%20Files.Read%20Files.Read.All%20offline_access")
+					}
+				}
+			}
+			initDB = (callback) => {
+				var req = indexedDB.open("myGrooveCache",8)
+				req.onerror = (event)=>{
+					alert("Database error: "+event.target.error)
+				}
+				req.onsuccess = (event)=>{
+					db = event.target.result
+					callback()
+				}
+				req.onupgradeneeded = (event)=>{
+					event.target.result.createObjectStore(localStorage.getItem('ms_curr_user')+'files')
+					event.target.result.createObjectStore(localStorage.getItem('ms_curr_user')+'cachedFiles')
+				}
+			}
+			getPersoInfo = (callback) => {
+				var userName = localStorage.getItem('ms_curr_userName')
+				if(userName && userName != ""){
+					document.getElementById('title').innerHTML = 'Songs of '+userName
+					callback()
+				}else{
+					var req = new XMLHttpRequest()
+					req.open('GET',"https://graph.microsoft.com/v1.0/me/")
+					req.setRequestHeader('Authorization','Bearer '+localStorage.getItem('ms_access_token'))
+					req.setRequestHeader('Content-Type','application/json')
+					req.addEventListener('load',function(data){
+						data = JSON.parse(req.responseText)
+						document.getElementById('title').innerHTML = 'myGroove of '+data.displayName
+						localStorage.setItem('ms_curr_user',data.id)
+						localStorage.setItem('ms_curr_userName',data.displayName)
+						callback()
+					})
+					req.send()
+				}
+			}
+			playbackFile = (data,id,name) => {
+				setStatus("decoding...")
+				audioctx.decodeAudioData(data, function(buffer) {
+					setStatus("finished decoding...")
+					var source = audioctx.createBufferSource()
+					source.buffer = buffer
+					source.connect(audioctx.destination)
+					try{currentSource.stop()}catch(e){}
+					source.start(0)
+					document.getElementById('currentSong').innerHTML = name
+					setStatus("Song playing!",true)
+					currentSource = source
+					source.addEventListener('ended', ()=>{
+						document.getElementById('currentSong').innerHTML = ""
+						if(document.getElementById('randomizer').checked){
+							var list = document.getElementById('itemList')
+							var newRank = Math.floor(Math.random() * list.childElementCount)
+							playFile(list.childNodes[newRank].childNodes[1].id,true)
+						}
+					})
+				})
+			}
+			setStatus = (text,close) => {
+				document.getElementById('status').innerHTML = text
+				if(close){
+					setTimeout(()=>{setStatus("&nbsp;")},1000)
+				}
+			}
+			getStatus = () => {
+				return document.getElementById('status').innerHTML
+			}
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			playFile = (id,fromRandom) => {
+				if(fromRandom || (!(document.getElementById('randomizer').checked))){
+					if((getStatus() != "Loading new Song...")&&(getStatus() != "Caching song...")){
+						setStatus("Loading new Song...")
+						var name = document.getElementById(id).innerHTML
+						var storeName = localStorage.getItem('ms_curr_user')+'cachedFiles'
+						var req = db.transaction([storeName]).objectStore(storeName).get(id)
+						req.onerror = (event)=>{console.err("ERROR")}
+						req.onsuccess = (event)=>{
+							if(req.result){
+								playbackFile(req.result,id,name)
+							}else{
+								setStatus("Song not cached!",true)
+							}
+						}
+					}
+				}
+			}
+			deleteSyncedFiles = () => {
+				setStatus('Deleting cached Data...')
+				var storeName = localStorage.getItem('ms_curr_user')+'cachedFiles'
+				var store = db.transaction([storeName],'readwrite').objectStore(storeName).clear().onsuccess = (e)=>{setStatus('Cached data deleted!',true)}
+			}
+			syncFiles = () => {
+				setStatus("Syncing all files")
+				if(!(syncing)){
+					receiveFiles((files)=>{
+						syncing = true
+						SYNC_checked = 0;
+						SYNC_files = files.length;
+						files.forEach((file)=>{
+							fileCached(file,(notHere)=>{
+								if(notHere){
+									downloadFile(file.id,()=>{
+										checkSYNC()
+									})
+								}else{
+									checkSYNC()
+								}
+							})
+						})
+					})
+				}
+			}
+			checkSYNC = () => {
+				SYNC_checked = SYNC_checked + 1
+				setStatus("Synced files: "+SYNC_checked+" of "+SYNC_files)
+				if(SYNC_files == SYNC_checked){
+					addFilesToDOM(()=>{
+						syncing = false
+						setStatus("Everything synced!",true)
+					})
+				}
+			}
+			fileCached = (file,callback) => {
+				var storeName = localStorage.getItem('ms_curr_user')+'cachedFiles'
+				var req = db.transaction([storeName]).objectStore(storeName).get(file.id)
+				req.onerror = (event)=>{console.err("ERROR")}
+				req.onsuccess = (event)=>{
+					if(req.result){
+						callback(false)
+					}else{
+						callback(true)
+					}
+				}
+			}
+			downloadFile = (id,callback) => {
+				loginCheck(()=>{
+					var req = new XMLHttpRequest()
+					req.open('POST','download.php')
+					req.addEventListener('load',function(data){
+						var url = req.responseText.substring(10)
+						var request = new XMLHttpRequest();
+						request.open("GET",url)
+						request.responseType = "arraybuffer"
+						request.onload = () => {
+							storeFile(request.response,id,callback)
+						}
+						request.send()
+					})
+					req.send(id+":"+localStorage.getItem('ms_access_token'))
+				})
+			}
+			storeFile = (data,id,callback) => {
+				//audioctx.decodeAudioData(data, function(buffer) {
+					var storeName = localStorage.getItem('ms_curr_user')+'cachedFiles'
+					var store = db.transaction([storeName], "readwrite").objectStore(storeName).add(data,id).onsuccess = ()=>{callback()}
+				//})
+			}
+			receiveFiles = (callback)=>{
+				var storeFiles = (files)=>{
+					var storeName = localStorage.getItem('ms_curr_user')+'files'
+					var transaction = db.transaction([storeName], "readwrite")
+					transaction.oncomplete = (event)=>{
+						callback(files)
+					}
+					transaction.onerror = (event)=>{alert("Failure during caching of the Songs")}
+					var store = transaction.objectStore(storeName)
+					store.clear().onsuccess = (event) =>{
+						files.forEach((file)=>{
+							store.add(file,file.id)
+						})
+					}
+				}
+				loginCheck(()=>{
+					var req = new XMLHttpRequest()
+					req.open('GET',"https://graph.microsoft.com/v1.0/me/drive/root:/Music:/children?$top=50000")
+					req.setRequestHeader('Authorization','Bearer '+localStorage.getItem('ms_access_token'))
+					req.setRequestHeader('Content-Type','application/json')
+					req.ontimeout = ()=>{callback()}
+					req.addEventListener('error',(data)=>{callback()})
+					req.addEventListener('abort',(data)=>{callback()})
+					req.addEventListener('load',(data)=>{
+						storeFiles(JSON.parse(req.responseText).value)
+					})
+					req.send()
+				})
+			}
+			addFilesToDOM = (callback) => {
+				var storeName = localStorage.getItem('ms_curr_user')+'files'
+				var store = db.transaction([storeName]).objectStore(storeName)
+				store.getAll().onsuccess = (event) => {
+					if(event.target.result){
+						var list = document.getElementById('itemList')
+						var tempEl = document.createElement('div')
+						list.innerHTML = ''
+						event.target.result.forEach((file)=>{
+							if(file.file.mimeType == "audio/mpeg"){
+								fileCached(file,(cached)=>{
+									if(!(cached)){
+										var div = document.createElement('div')
+										var play = document.createElement('div')
+										var name = document.createElement('div')
+										play.innerHTML = "&#9655;"
+										play.classList = "play"
+										name.id = file.id
+										name.innerHTML = file.description
+										name.classList = 'name'
+										play.onclick = ()=>{
+											playFile(file.id)
+										}
+										div.appendChild(play)
+										div.appendChild(name)
+										list.appendChild(div)
+									}
+								})
+							}
+						})
+						callback()
+					}
+				}
+			}
+			window.onload = () => {
+				navigator.serviceWorker.register('service-worker.js', {
+				  scope: '/groove/'
+				})
+				audioctx = new AudioContext()
+				setStatus("Logging in...")
+				loginCheck(()=>{
+					setStatus("Receiving Username...")
+					getPersoInfo(()=>{
+						setStatus("Initializing Database...")
+						initDB(()=>{
+							setStatus("Retrieving cached Songs...")
+							addFilesToDOM(()=>{
+								setStatus("Ready!",true)
+							})
+						})
+					})
+				})
+			}
+		</script>
+</html>
