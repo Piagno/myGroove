@@ -85,7 +85,7 @@
 		<div id="status">&nbsp;</div>
 		<div class="syncer" onclick="syncFiles()">Sync all Files</div>
 		<div><span id="cacheDelete" onclick="if(confirm('cache löschen?')){deleteSyncedFiles()}">Delete Cache</span></div>
-		<div><span id="stopper" onclick="currentSource.stop()">Stop &#9632;</span></div>
+		<div><span id="stopper" onclick="audio.pause()">Stop &#9632;</span></div>
 		<div class="randomizer">Randomly play songs: <input type="checkbox" id="randomizer" /></div>
 		<div class="currentSong">Current Song: <span id="currentSong"></span></div>
 		<div id="report"><a href="https://tool.piagno.ch/report?d4ecf743463fc50d2f665f5c09f41791f56cdb0d8e180b9e4744b4bdc7de85fe" target="_blank">Give a feedback!</a></div>
@@ -154,26 +154,15 @@
 				}
 			}
 			playbackFile = (data,id,name) => {
-				setStatus("decoding...")
-				audioctx.decodeAudioData(data, function(buffer) {
-					setStatus("finished decoding...")
-					var source = audioctx.createBufferSource()
-					source.buffer = buffer
-					source.connect(audioctx.destination)
-					try{currentSource.stop()}catch(e){}
-					source.start(0)
-					document.getElementById('currentSong').innerHTML = name
-					setStatus("Song playing!",true)
-					currentSource = source
-					source.addEventListener('ended', ()=>{
-						document.getElementById('currentSong').innerHTML = ""
-						if(document.getElementById('randomizer').checked){
-							var list = document.getElementById('itemList')
-							var newRank = Math.floor(Math.random() * list.childElementCount)
-							playFile(list.childNodes[newRank].childNodes[1].id,true)
-						}
-					})
-				})
+      			var blob = new Blob([data], {type: 'audio/mpeg'})
+      			var objectUrl = URL.createObjectURL(blob);
+      			audio.src = objectUrl;
+      			audio.onload = function(evt) {
+      			  URL.revokeObjectURL(objectUrl)
+      			}
+      			audio.play()
+				setStatus("Song playing!",true)
+				document.getElementById('currentSong').innerHTML = name
 			}
 			setStatus = (text,close) => {
 				document.getElementById('status').innerHTML = text
@@ -269,10 +258,8 @@
 				})
 			}
 			storeFile = (data,id,callback) => {
-				//audioctx.decodeAudioData(data, function(buffer) {
-					var storeName = localStorage.getItem('ms_curr_user')+'cachedFiles'
-					var store = db.transaction([storeName], "readwrite").objectStore(storeName).add(data,id).onsuccess = ()=>{callback()}
-				//})
+				var storeName = localStorage.getItem('ms_curr_user')+'cachedFiles'
+				var store = db.transaction([storeName], "readwrite").objectStore(storeName).add(data,id).onsuccess = ()=>{callback()}
 			}
 			receiveFiles = (callback)=>{
 				var storeFiles = (files)=>{
@@ -341,7 +328,15 @@
 				navigator.serviceWorker.register('service-worker.js', {
 				  scope: '/groove/'
 				})
-				audioctx = new AudioContext()
+				audio = new Audio()
+				audio.addEventListener('ended', ()=>{
+					document.getElementById('currentSong').innerHTML = ""
+					if(document.getElementById('randomizer').checked){
+						var list = document.getElementById('itemList')
+						var newRank = Math.floor(Math.random() * list.childElementCount)
+						playFile(list.childNodes[newRank].childNodes[1].id,true)
+					}
+				})
 				setStatus("Logging in...")
 				loginCheck(()=>{
 					setStatus("Receiving Username...")
