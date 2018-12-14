@@ -155,8 +155,8 @@
 			}
 			playbackFile = (data,id,name) => {
       			var blob = new Blob([data], {type: 'audio/mpeg'})
-      			var objectUrl = URL.createObjectURL(blob);
-      			audio.src = objectUrl;
+      			var objectUrl = URL.createObjectURL(blob)
+      			audio.src = objectUrl
       			audio.onload = function(evt) {
       			  URL.revokeObjectURL(objectUrl)
       			}
@@ -200,10 +200,10 @@
 			syncFiles = () => {
 				setStatus("Syncing all files")
 				if(!(syncing)){
+					syncing = true
 					receiveFiles((files)=>{
-						syncing = true
-						SYNC_checked = 0;
-						SYNC_files = files.length;
+						SYNC_checked = 0
+						SYNC_files = files.length
 						files.forEach((file)=>{
 							fileCached(file,(notHere)=>{
 								if(notHere){
@@ -246,7 +246,7 @@
 					req.open('POST','download.php')
 					req.addEventListener('load',function(data){
 						var url = req.responseText.substring(10)
-						var request = new XMLHttpRequest();
+						var request = new XMLHttpRequest()
 						request.open("GET",url)
 						request.responseType = "arraybuffer"
 						request.onload = () => {
@@ -266,15 +266,20 @@
 					var storeName = localStorage.getItem('ms_curr_user')+'files'
 					var transaction = db.transaction([storeName], "readwrite")
 					transaction.oncomplete = (event)=>{
-						callback(files)
+						var trans = db.transaction([storeName], "readwrite")
+						trans.oncomplete = (event)=>{
+							console.log("FINITO")
+							callback(files)
+						}
+						trans.onerror = (event)=>{alert("Failure during caching of the Songs")}
+						var stor = trans.objectStore(storeName)
+						files.forEach((file)=>{
+							stor.add(file,file.id)
+						})
 					}
 					transaction.onerror = (event)=>{alert("Failure during caching of the Songs")}
 					var store = transaction.objectStore(storeName)
-					store.clear().onsuccess = (event) =>{
-						files.forEach((file)=>{
-							store.add(file,file.id)
-						})
-					}
+					store.clear()
 				}
 				loginCheck(()=>{
 					var req = new XMLHttpRequest()
