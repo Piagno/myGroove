@@ -1,4 +1,4 @@
-var CACHE = 'grooveCache';
+var CACHE = 'myGrooveCache';
 self.addEventListener('install', function(evt) {
 	evt.waitUntil(caches.open(CACHE).then(function (cache) {
     	return cache.addAll([
@@ -28,11 +28,13 @@ self.addEventListener('fetch', function(event) {
 	event.waitUntil(
 		caches.open(CACHE).then(function (cache) {
 			cache.match(event.request).then(function(response) {
-				fetch(event.request).then(function (response) {
-					cache.put(event.request, response.clone()).then(function () {
-						return true;
-					});
-    			});
+				if(response){
+					fetch(event.request).then(function (response) {
+						cache.put(event.request, response.clone()).then(function () {
+							return true;
+						});
+    				});
+				}
 			})
 		})
 	)
