@@ -291,7 +291,7 @@
 				}
 				loginCheck(()=>{
 					var req = new XMLHttpRequest()
-					req.open('GET',"https://graph.microsoft.com/v1.0/me/drive/root:/Music:/children?$top=50000")
+					req.open('GET',"https://graph.microsoft.com/v1.0/me/drive/root:/Music:/children?$top=50000&$OrderBy=lastModifiedDateTime desc")
 					req.setRequestHeader('Authorization','Bearer '+localStorage.getItem('ms_access_token'))
 					req.setRequestHeader('Content-Type','application/json')
 					req.ontimeout = ()=>{callback()}
