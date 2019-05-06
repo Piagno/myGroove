@@ -230,10 +230,10 @@
 			}
 			fileCached = (file,callback) => {
 				var storeName = localStorage.getItem('ms_curr_user')+'cachedFiles'
-				var req = db.transaction([storeName]).objectStore(storeName).get(file.id)
+				var req = db.transaction([storeName]).objectStore(storeName).count(file.id)
 				req.onerror = (event)=>{console.err("ERROR")}
 				req.onsuccess = (event)=>{
-					if(req.result){
+					if(req.result == 1){
 						callback(false)
 					}else{
 						callback(true)
