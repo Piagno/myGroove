@@ -19,7 +19,7 @@
 				color: green;
 				font-weight: bolder
 			}
-			.currentSong, #stopper, .randomizer, #report{
+			.currentSong, #stopper, #pauser, .randomizer, #report{
 				padding-left: 4px;
 				font-weight: bolder;
 				color: white;
@@ -30,7 +30,7 @@
 			#itemList{
 				margin-top: 10px
 			}
-			#stopper:hover{
+			#stopper:hover, #pauser:hover{
 				text-decoration: underline;
 				cursor:pointer
 			}
@@ -86,6 +86,7 @@
 		<div class="syncer" onclick="syncFiles()">Sync all Files</div>
 		<div><span id="cacheDelete" onclick="if(confirm('cache löschen?')){deleteSyncedFiles()}">Delete Cache</span></div>
 		<div><span id="stopper" onclick="audio.pause()">Stop &#9632;</span></div>
+		<div><span id="pauser" onclick="if(audio.paused){audio.play()}else{audio.pause()}">Pause/Play</span></div>
 		<div class="randomizer">Randomly play songs: <input type="checkbox" id="randomizer" /></div>
 		<div class="currentSong">Current Song: <span id="currentSong"></span></div>
 		<div id="report"><a href="https://tool.piagno.ch/report?d4ecf743463fc50d2f665f5c09f41791f56cdb0d8e180b9e4744b4bdc7de85fe" target="_blank">Give a feedback!</a></div>
