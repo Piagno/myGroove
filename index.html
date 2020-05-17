@@ -313,7 +313,11 @@
 										play.innerHTML = "&#9655;"
 										play.classList = "play"
 										name.id = file.id
-										name.innerHTML = file.description
+										if(file.description == undefined){
+											name.innerHTML = file.name.substring(0,file.name.length - 4)
+										}else{
+											name.innerHTML = file.description
+										}
 										name.classList = 'name'
 										play.onclick = ()=>{
 											playFile(file.id)
