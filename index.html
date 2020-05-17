@@ -174,20 +174,18 @@
 				return document.getElementById('status').innerHTML
 			}
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-			playFile = (id,fromRandom) => {
-				if(fromRandom || (!(document.getElementById('randomizer').checked))){
-					if((getStatus() != "Loading new Song...")&&(getStatus() != "Caching song...")){
-						setStatus("Loading new Song...")
-						var name = document.getElementById(id).innerHTML
-						var storeName = localStorage.getItem('ms_curr_user')+'cachedFiles'
-						var req = db.transaction([storeName]).objectStore(storeName).get(id)
-						req.onerror = (event)=>{console.err("ERROR")}
-						req.onsuccess = (event)=>{
-							if(req.result){
-								playbackFile(req.result,id,name)
-							}else{
-								setStatus("Song not cached!",true)
-							}
+			playFile = (id) => {
+				if((getStatus() != "Loading new Song...")&&(getStatus() != "Caching song...")){
+					setStatus("Loading new Song...")
+					var name = document.getElementById(id).innerHTML
+					var storeName = localStorage.getItem('ms_curr_user')+'cachedFiles'
+					var req = db.transaction([storeName]).objectStore(storeName).get(id)
+					req.onerror = (event)=>{console.err("ERROR")}
+					req.onsuccess = (event)=>{
+						if(req.result){
+							playbackFile(req.result,id,name)
+						}else{
+							setStatus("Song not cached!",true)
 						}
 					}
 				}
@@ -343,7 +341,7 @@
 					if(document.getElementById('randomizer').checked){
 						var list = document.getElementById('itemList')
 						var newRank = Math.floor(Math.random() * list.childElementCount)
-						playFile(list.childNodes[newRank].childNodes[1].id,true)
+						playFile(list.childNodes[newRank].childNodes[1].id)
 					}
 				})
 				setStatus("Logging in...")
