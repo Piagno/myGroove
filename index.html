@@ -85,6 +85,7 @@
 		<div id="status">&nbsp;</div>
 		<div class="syncer" onclick="syncFiles()">Sync all Files</div>
 		<div><span id="cacheDelete" onclick="if(confirm('cache löschen?')){deleteSyncedFiles()}">Delete Cache</span></div>
+		<div><span id="logout" onclick="if(confirm('Ausloggen?')){logout()}">Logout</span></div>
 		<div><span id="stopper" onclick="audio.pause()">Stop &#9632;</span></div>
 		<div><span id="pauser" onclick="if(audio.paused){audio.play()}else{audio.pause()}">Pause/Play</span></div>
 		<div class="randomizer">Randomly play songs: <input type="checkbox" id="randomizer" /></div>
@@ -94,6 +95,10 @@
 	</body>
 		<script>
 			syncing = false
+			logout = () => {
+				localStorage.clear()
+				location.reload()
+			}
 			loginCheck = (callback) => {
 				var accessToken = localStorage.getItem('ms_access_token')
 				var expiration = Date.parse(localStorage.getItem('ms_expires_in'))
