@@ -249,7 +249,7 @@
 					var req = new XMLHttpRequest()
 					req.open('POST','download.php')
 					req.addEventListener('load',function(data){
-						var url = req.responseText.substring(10)
+						var url = req.responseText.substring(18)
 						var request = new XMLHttpRequest()
 						request.open("GET",url)
 						request.responseType = "arraybuffer"
