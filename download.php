@@ -12,4 +12,4 @@ $options = array(
 $context  = stream_context_create($options);
 $result = file_get_contents($url, false, $context);
 if ($result === FALSE) { echo "ERROR"; }
-echo $http_response_header[3];
+echo $http_response_header[14];
